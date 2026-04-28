@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "switchboard"
+version = "2.0.0"
+description = "Intelligent LLM routing system for optimal agent orchestration with MCTS-based model selection"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Human Systems", email = "dev@humansystems.ai"}
+]
+keywords = ["llm", "routing", "mcts", "ai-agents", "orchestration"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=2.0",
+    "openai>=1.0",
+    "anthropic>=0.20",
+    "prometheus-client>=0.19.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "pyright>=1.1.0",
+]
+benchmark = [
+    "pytest-benchmark>=4.0",
+]
+
+[project.scripts]
+switchboard = "switchboard.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/humansystems/switchboard"
+Documentation = "https://github.com/humansystems/switchboard#readme"
+Repository = "https://github.com/humansystems/switchboard"
+Issues = "https://github.com/humansystems/switchboard/issues"
+
+[tool.setuptools]
+packages = ["switchboard"]
+
+[tool.setuptools.package-dir]
+switchboard = "."
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (>500ms)",
+    "benchmark: marks benchmark tests",
+    "integration: marks integration tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingModuleSource = false

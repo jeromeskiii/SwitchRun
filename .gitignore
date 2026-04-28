@@ -1,0 +1,43 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python
+.venv
+.env
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+dist
+build
+
+# Node.js
+node_modules
+npm-debug.log
+.npm
+dist
+coverage
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+switchboard_audit.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
