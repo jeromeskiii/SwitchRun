@@ -30,6 +30,12 @@ from switchboard.agents import (
     CreativeWritingAgent,
 )
 
+try:
+    from photonic import AGENT_SELECTED, PhotonicBus, PhotonicEvent
+    _PHOTONIC_AVAILABLE = True
+except ImportError:
+    _PHOTONIC_AVAILABLE = False
+
 # Configure module-level logger
 logger = logging.getLogger(__name__)
 
@@ -232,6 +238,26 @@ class Router:
 
         if self.config.debug_logging:
             logger.debug("Routing decision: %s", asdict(decision))
+
+        # Emit agent selection event for Photonic subscribers
+        if _PHOTONIC_AVAILABLE:
+            try:
+                primary_agent = plan.steps[0].agent_id.value if plan.steps else "unknown"
+                PhotonicBus.instance().emit(PhotonicEvent(
+                    type=AGENT_SELECTED,
+                    source="switchboard/router",
+                    payload={
+                        "agent_id": primary_agent,
+                        "agent_name": primary_agent,
+                        "task_type": classification.task_id.value,
+                        "confidence": round(classification.confidence, 4),
+                        "strategy": plan.strategy,
+                        "forced": metadata.forced_agent_used,
+                        "low_confidence_override": metadata.low_confidence_override,
+                    },
+                ))
+            except Exception as exc:
+                logger.debug("photonic emit failed: %s", exc)
 
         return decision
 

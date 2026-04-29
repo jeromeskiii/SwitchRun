@@ -18,6 +18,12 @@ import numpy as np
 
 from switchboard.config import SwitchboardConfig
 
+try:
+    from photonic import MCTS_RESULT, PhotonicBus, PhotonicEvent
+    _PHOTONIC_AVAILABLE = True
+except ImportError:
+    _PHOTONIC_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -181,13 +187,16 @@ class ModelSelectionMCTS:
         # Build selection path
         path = self._get_selection_path(best_child)
 
-        return SelectionResult(
+        result = SelectionResult(
             model=best_model,
             confidence=confidence,
             expected_reward=best_child.total_reward / max(best_child.visits, 1),
             simulations_run=simulations_run,
             selection_path=path,
         )
+
+        self._emit_mcts_result(result, task_features)
+        return result
 
     def _select(self, node: Node) -> Node:
         """Select node using UCB1 algorithm."""
@@ -359,6 +368,27 @@ class ModelSelectionMCTS:
             f"{features.requires_reasoning}"
         )
         return hashlib.sha256(feature_str.encode()).hexdigest()[:16]
+
+    def _emit_mcts_result(self, result: SelectionResult, features: TaskFeatures) -> None:
+        """Emit a Photonic MCTS_RESULT event; silently skipped if photonic is unavailable."""
+        if not _PHOTONIC_AVAILABLE:
+            return
+        try:
+            PhotonicBus.instance().emit(PhotonicEvent(
+                type=MCTS_RESULT,
+                source="switchboard/mcts_router",
+                payload={
+                    "selected_model": result.model.id,
+                    "provider": result.model.provider,
+                    "confidence": round(result.confidence, 4),
+                    "expected_reward": round(result.expected_reward, 4),
+                    "simulations": result.simulations_run,
+                    "domain": features.domain,
+                    "complexity": round(features.complexity, 2),
+                },
+            ))
+        except Exception as exc:
+            logger.debug("photonic emit failed: %s", exc)
 
     def update_performance(self, model_id: str, actual_reward: float) -> None:
         """Update historical performance after actual usage."""

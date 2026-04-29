@@ -131,6 +131,32 @@ def check_models() -> HealthStatus:
         return HealthStatus("models", False, f"Models error: {e}")
 
 
+def check_photonic() -> HealthStatus:
+    """Check if Photonic event bus is available."""
+    try:
+        from photonic import PhotonicBus
+
+        bus = PhotonicBus.instance()
+        metrics = bus.metrics()
+        backend = metrics.get("backend", "unknown")
+        total_emitted = metrics.get("total_emitted", 0)
+        return HealthStatus(
+            "photonic",
+            True,
+            f"Photonic operational (backend={backend}, emitted={total_emitted})",
+            {"backend": backend, "total_emitted": total_emitted, "channels": len(metrics.get("channels", {}))},
+        )
+    except ImportError:
+        return HealthStatus(
+            "photonic",
+            True,
+            "Photonic not installed (optional — events disabled)",
+            {"available": False},
+        )
+    except Exception as e:
+        return HealthStatus("photonic", False, f"Photonic error: {e}")
+
+
 def create_default_health_checker() -> HealthChecker:
     """Create a health checker with default checks."""
     checker = HealthChecker()
@@ -139,6 +165,7 @@ def create_default_health_checker() -> HealthChecker:
     checker.register("telemetry", check_telemetry)
     checker.register("agents", check_agents)
     checker.register("models", check_models)
+    checker.register("photonic", check_photonic)
     return checker
 
 

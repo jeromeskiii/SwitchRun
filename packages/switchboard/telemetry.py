@@ -16,6 +16,12 @@ from prometheus_client import (
 
 logger = logging.getLogger(__name__)
 
+try:
+    from photonic import PhotonicBus
+    _PHOTONIC_AVAILABLE = True
+except ImportError:
+    _PHOTONIC_AVAILABLE = False
+
 
 class SwitchboardTelemetry:
     """Prometheus metrics collector for Switchboard routing decisions."""
@@ -95,6 +101,18 @@ class SwitchboardTelemetry:
             registry=self._registry,
         )
 
+        self._photonic_emitted = Gauge(
+            "photonic_events_emitted_total",
+            "Total events emitted through Photonic bus",
+            registry=self._registry,
+        )
+
+        self._photonic_dropped = Gauge(
+            "photonic_events_dropped_total",
+            "Total events dropped by Photonic bus (backpressure)",
+            registry=self._registry,
+        )
+
         self._server = None
 
     def record_routing_decision(
@@ -168,6 +186,17 @@ class SwitchboardTelemetry:
     def record_mcts_simulation(self, simulations: int) -> None:
         """Record MCTS simulation count."""
         self._mcts_simulations.observe(simulations)
+
+    def sync_photonic_metrics(self) -> None:
+        """Pull current Photonic bus stats into Prometheus gauges."""
+        if not _PHOTONIC_AVAILABLE:
+            return
+        try:
+            metrics = PhotonicBus.instance().metrics()
+            self._photonic_emitted.set(metrics.get("total_emitted", 0))
+            self._photonic_dropped.set(metrics.get("total_dropped", 0))
+        except Exception:
+            pass
 
     def get_metrics(self) -> bytes:
         """Get current metrics in Prometheus format."""

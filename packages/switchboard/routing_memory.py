@@ -18,6 +18,12 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+try:
+    from photonic import EXECUTION_COMPLETED, PhotonicBus, PhotonicEvent
+    _PHOTONIC_AVAILABLE = True
+except ImportError:
+    _PHOTONIC_AVAILABLE = False
+
 # Records older than this get 0.5x weight
 DECAY_THRESHOLD_SECONDS = 7 * 24 * 3600  # 7 days
 DECAY_FACTOR = 0.5
@@ -77,11 +83,36 @@ class RoutingMemory:
         self._lock = threading.Lock()
         self._load()
         self._start_flush_thread()
+        self._subscribe_photonic()
         atexit.register(self._atexit_shutdown)
 
     def _atexit_shutdown(self) -> None:
         """Called on process exit to flush unflushed records."""
         self.flush()
+
+    def _subscribe_photonic(self) -> None:
+        """Subscribe to Photonic EXECUTION_COMPLETED events for auto-recording."""
+        if not _PHOTONIC_AVAILABLE:
+            return
+        try:
+            PhotonicBus.instance().on(EXECUTION_COMPLETED, self._on_execution_completed)
+            logger.debug("routing memory subscribed to photonic execution events")
+        except Exception as exc:
+            logger.debug("photonic subscription failed: %s", exc)
+
+    def _on_execution_completed(self, event: "PhotonicEvent") -> None:
+        """Handle Photonic execution completed events."""
+        try:
+            p = event.payload
+            self.record(
+                agent_id=str(p.get("agent", "unknown")),
+                task_type=str(p.get("task_type", "unknown")),
+                success=bool(p.get("success", False)),
+                reward=1.0 if p.get("success") else 0.0,
+                latency_ms=float(p.get("latency_ms", 0)),
+            )
+        except Exception as exc:
+            logger.debug("photonic event handling failed: %s", exc)
 
     # ── background flush thread ───────────────────────────────────
 
